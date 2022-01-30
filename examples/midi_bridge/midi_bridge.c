@@ -13,8 +13,12 @@ static volatile uint32_t done;
 
 #define GRID_SIZE 64
 
+#define MIDI_MAX_NOTE 127
 #define MIDI_STARTING_NOTE 24
 
+const uint32_t group_pads_mapping[] = {
+ 0x000000ff, 0x0000ff00, 0x00ff0000, 0x00ff00ff, 0x00ffff00, 0x0000ffff, 0x00ffffff
+};
 
 static struct mm_t
 {
@@ -51,7 +55,12 @@ void demo_feedback_func(struct ctlra_dev_t *dev, void *d)
         if(mm->group_pressed) {
             for(int i = 0; i < mm->max_groups; i++) {
                 int id = daemon->info.grid_info[0].info.params[0] + i;
-                uint32_t col = 0xff << ((i * 4) + 3);
+                uint32_t col = group_pads_mapping[i];
+                if(mm->group_id == i) {
+                    col += 0xff000000; /* Lighten up currently selected group */
+                } else {
+                    col += 0x00000000;
+                }
                 ctlra_dev_light_set(dev, id, col);
             }
         } else {
@@ -182,7 +191,7 @@ int accept_dev_func(struct ctlra_t *ctlra,
         daemon->grid_col = 0xff0040ff;
 
         struct mm_t *mm = &mm_static;
-        mm->max_groups = (88 - MIDI_STARTING_NOTE) / daemon->pads_count;
+        mm->max_groups = (MIDI_MAX_NOTE - MIDI_STARTING_NOTE) / daemon->pads_count;
 		/* easter egg: set env var to change colour of pads */
 		char *col = getenv("CTLRA_COLOUR");
 		if(col)
