@@ -136,7 +136,7 @@ void demo_event_func(struct ctlra_dev_t* dev,
                             mm->shift_pressed = e->button.pressed;
                             break;
                         default:
-                            msg[0] = 0xb0;
+                            msg[0] = 0xb0 + mm->midi_channel;
                             msg[1] = 60 + e->button.id;
                             msg[2] = e->button.pressed ? MIDI_MAX_VELOCITY : 0;
                             ret = ctlra_midi_output_write(midi, 3, msg);
@@ -148,7 +148,7 @@ void demo_event_func(struct ctlra_dev_t* dev,
                 break;
 
             case CTLRA_EVENT_SLIDER:
-                msg[0] = 0xb0;
+                msg[0] = 0xb0 + mm->midi_channel;
                 msg[1] = e->slider.id;
                 msg[2] = (int)(e->slider.value * 127.f);
                 ret = ctlra_midi_output_write(midi, 3, msg);
