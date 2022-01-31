@@ -143,7 +143,7 @@ void demo_event_func(struct ctlra_dev_t* dev,
                             break;
                     }
                 }
-
+                break;
             case CTLRA_EVENT_ENCODER:
                 msg[0] = 0xb0 + mm->midi_channel;
                 msg[1] = 2;
