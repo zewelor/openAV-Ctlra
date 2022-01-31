@@ -18,3 +18,8 @@ Press and hold shift, currently chosen channel is indicated by colored pad. Pres
 ### Fixed velocity
 
 Hold shift and press fixed velocity button to toggle on / off fixed velocity for pads.
+
+### Encoder
+
+Encoder remembers its value on each channel.
+You can scroll faster while holding shift.

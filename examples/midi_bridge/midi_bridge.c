@@ -33,9 +33,9 @@ struct mm_t
     uint8_t group_id; /* 0 - 5, selected group */
     uint8_t max_groups;
 
-    /* CHANNEL */
     uint8_t midi_channel;
     uint8_t fixed_velocity;
+    uint8_t encoder_value[MIDI_CHANNEL_MAX];
 };
 
 /* a struct to pass around as userdata to callbacks */
@@ -145,11 +145,28 @@ void demo_event_func(struct ctlra_dev_t* dev,
                 }
 
             case CTLRA_EVENT_ENCODER:
+                msg[0] = 0xb0 + mm->midi_channel;
+                msg[1] = 2;
+                int16_t new_value;
+                if(mm->shift_pressed) {
+                    new_value = mm->encoder_value[mm->midi_channel] + e->encoder.delta * 4;
+                } else {
+                    new_value = mm->encoder_value[mm->midi_channel] + e->encoder.delta;
+                }
+                if(new_value > MIDI_MAX_NOTE) {
+                    mm->encoder_value[mm->midi_channel] = MIDI_MAX_NOTE;
+                } else if (new_value < 0) {
+                    mm->encoder_value[mm->midi_channel] = 0;
+                } else {
+                    mm->encoder_value[mm->midi_channel] = new_value;
+                }
+                msg[2] = mm->encoder_value[mm->midi_channel];
+                ret = ctlra_midi_output_write(midi, 3, msg);
                 break;
 
             case CTLRA_EVENT_SLIDER:
                 msg[0] = 0xb0 + mm->midi_channel;
-                msg[1] = e->slider.id;
+                msg[1] = 1;
                 msg[2] = (int)(e->slider.value * 127.f);
                 ret = ctlra_midi_output_write(midi, 3, msg);
                 break;
