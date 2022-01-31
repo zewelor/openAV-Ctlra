@@ -534,17 +534,18 @@ static void ni_maschine_mikro_mk3_light_set(struct ctlra_dev_t *base,
         }
     };
 
+    uint8_t v = (hue << 2) | ((bright >> 2) & 0x3);
+
 	/* normal LEDs */
 	if(light_id < NI_MASCHINE_MIKRO_MK3_BUTTONS_LED_COUNT) {
-        if(dev->lights.data[light_id] != bright) {
-            dev->lights.data[light_id] = bright;
+        if(dev->lights.data[light_id] != v) {
+            dev->lights.data[light_id] = v;
             dev->lights_dirty = 1;
         }
 	} else {
 		/* 25 strip + 16 pads */
         uint8_t pad_idx = pad_idx_light_mapping[light_id - BUTTONS_LIGHTS_SIZE];
 
-        uint8_t v = (hue << 2) | (bright & 0x3);
         if(dev->lights.data[pad_idx] != v) {
             dev->lights.data[pad_idx] = v;
             dev->lights_dirty = 1;
