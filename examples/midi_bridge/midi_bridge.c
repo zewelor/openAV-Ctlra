@@ -202,7 +202,7 @@ int accept_dev_func(struct ctlra_t *ctlra,
     ctlra_dev_set_callback_userdata(dev, daemon);
 
     return 1;
-    fail:
+fail:
     printf("failed to alloc/open midi backend\n");
     if(daemon)
         free(daemon);
