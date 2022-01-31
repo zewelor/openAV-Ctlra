@@ -13,8 +13,11 @@ static volatile uint32_t done;
 
 #define GRID_SIZE 64
 
+#define MIDI_CHANNEL_MAX 16
 #define MIDI_MAX_NOTE 127
 #define MIDI_STARTING_NOTE 24
+
+#define MIDI_CHANNEL_ACTIVE_COLOR 0xff00ff00
 
 const uint32_t group_pads_mapping[] = {
     0x000000ff, 0x0000ff00, 0x00ff0000, 0x00ff00ff, 0x00ffff00, 0x0000ffff, 0x00ffffff
@@ -28,6 +31,9 @@ struct mm_t
     /* GROUP */
     uint8_t group_id; /* 0 - 5, selected group */
     uint8_t max_groups;
+
+    /* CHANNEL */
+    uint8_t midi_channel;
 };
 
 /* a struct to pass around as userdata to callbacks */
@@ -51,13 +57,24 @@ void demo_feedback_func(struct ctlra_dev_t *dev, void *d)
         struct mm_t *mm = daemon->mm;
 
         if(mm->group_pressed) {
-            for(int i = 0; i < mm->max_groups; i++) {
+            for (int i = 0; i < mm->max_groups; i++) {
                 int id = daemon->info.grid_info[0].info.params[0] + i;
                 uint32_t col = group_pads_mapping[i];
-                if(mm->group_id == i) {
+                if (mm->group_id == i) {
                     col += 0xff000000; /* Lighten up currently selected group */
                 } else {
                     col += 0x00000000;
+                }
+                ctlra_dev_light_set(dev, id, col);
+            }
+        } else if(mm->shift_pressed) {
+            for (int i = 0; i < MIDI_CHANNEL_MAX; i++) {
+                int id = daemon->info.grid_info[0].info.params[0] + i;
+                uint32_t col;
+                if (mm->midi_channel == i) {
+                    col = MIDI_CHANNEL_ACTIVE_COLOR; /* Lighten up currently selected group */
+                } else {
+                    col = 0;
                 }
                 ctlra_dev_light_set(dev, id, col);
             }
@@ -120,14 +137,19 @@ void demo_event_func(struct ctlra_dev_t* dev,
 
             case CTLRA_EVENT_GRID: {
                 if(mm->group_pressed) {
-                    if(e->grid.pos > mm->max_groups) {
-                        mm->group_id = mm-> max_groups;
+                    if (e->grid.pos > mm->max_groups) {
+                        mm->group_id = mm->max_groups;
                     } else {
                         mm->group_id = e->grid.pos;
                     }
-                    mm->group_pressed = 0;
+                } else if(mm->shift_pressed) {
+                    if (e->grid.pos > MIDI_CHANNEL_MAX) {
+                        mm->midi_channel = MIDI_CHANNEL_MAX;
+                    } else {
+                        mm->midi_channel = e->grid.pos;
+                    }
                 } else {
-                    msg[0] = e->grid.pressed ? 0x90 : 0x80;
+                    msg[0] = (e->grid.pressed ? 0x90 : 0x80) + mm->midi_channel;
                     int pos = e->grid.pos;
                     daemon->grid[pos] = e->grid.pressed;
 //                msg[1] = pos + 36; /* GM kick drum note */
@@ -190,6 +212,9 @@ int accept_dev_func(struct ctlra_t *ctlra,
 
         daemon->mm = calloc(1, sizeof(struct mm_t));
         daemon->mm->max_groups = (MIDI_MAX_NOTE - MIDI_STARTING_NOTE) / daemon->pads_count;
+        daemon->mm->group_id = 0;
+        daemon->mm->midi_channel = 0;
+
         /* easter egg: set env var to change colour of pads */
         char *col = getenv("CTLRA_COLOUR");
         if(col)
