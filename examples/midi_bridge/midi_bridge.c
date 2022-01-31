@@ -15,6 +15,7 @@ static volatile uint32_t done;
 
 #define MIDI_CHANNEL_MAX 16
 #define MIDI_MAX_NOTE 127
+#define MIDI_MAX_VELOCITY 127
 #define MIDI_STARTING_NOTE 24
 
 #define MIDI_CHANNEL_ACTIVE_COLOR 0xff00ff00
@@ -34,6 +35,7 @@ struct mm_t
 
     /* CHANNEL */
     uint8_t midi_channel;
+    uint8_t fixed_velocity;
 };
 
 /* a struct to pass around as userdata to callbacks */
@@ -56,10 +58,15 @@ void demo_feedback_func(struct ctlra_dev_t *dev, void *d)
     if(daemon->has_grid) {
         struct mm_t *mm = daemon->mm;
 
+        uint32_t col;
+
+        col = mm->fixed_velocity * 0xffffffff;
+        ctlra_dev_light_set(dev, NI_MASCHINE_MIKRO_MK3_BTN_FIXED_VEL, col);
+
         if(mm->group_pressed) {
             for (int i = 0; i < mm->max_groups; i++) {
                 int id = daemon->info.grid_info[0].info.params[0] + i;
-                uint32_t col = group_pads_mapping[i];
+                col = group_pads_mapping[i];
                 if (mm->group_id == i) {
                     col += 0xff000000; /* Lighten up currently selected group */
                 } else {
@@ -70,7 +77,6 @@ void demo_feedback_func(struct ctlra_dev_t *dev, void *d)
         } else if(mm->shift_pressed) {
             for (int i = 0; i < MIDI_CHANNEL_MAX; i++) {
                 int id = daemon->info.grid_info[0].info.params[0] + i;
-                uint32_t col;
                 if (mm->midi_channel == i) {
                     col = MIDI_CHANNEL_ACTIVE_COLOR; /* Lighten up currently selected group */
                 } else {
@@ -81,7 +87,7 @@ void demo_feedback_func(struct ctlra_dev_t *dev, void *d)
         } else {
             for(int i = 0; i < daemon->pads_count; i++) {
                 int id = daemon->info.grid_info[0].info.params[0] + i;
-                uint32_t col = daemon->grid_col * (daemon->grid[i] > 0);
+                col = daemon->grid_col * (daemon->grid[i] > 0);
                 ctlra_dev_light_set(dev, id, col);
             }
         }
@@ -110,19 +116,32 @@ void demo_event_func(struct ctlra_dev_t* dev,
         int ret;
         switch(e->type) {
             case CTLRA_EVENT_BUTTON:
-                switch (e->button.id) {
-                    case NI_MASCHINE_MIKRO_MK3_BTN_GROUP:
-                        mm->group_pressed = e->button.pressed;
-                        break;
-                    case NI_MASCHINE_MIKRO_MK3_BTN_SHIFT:
-                        mm->shift_pressed = e->button.pressed;
-                        break;
-                    default:
-                        msg[0] = 0xb0;
-                        msg[1] = 60 + e->button.id;
-                        msg[2] = e->button.pressed ? 0x7f : 0;
-                        ret = ctlra_midi_output_write(midi, 3, msg);
-                        break;
+                if(mm->shift_pressed) {
+                    switch (e->button.id) {
+                        case NI_MASCHINE_MIKRO_MK3_BTN_FIXED_VEL:
+                            if(e->button.pressed) {
+                                mm->fixed_velocity = !mm->fixed_velocity;
+                            }
+                            break;
+                        case NI_MASCHINE_MIKRO_MK3_BTN_SHIFT:
+                            mm->shift_pressed = e->button.pressed;
+                            break;
+                    }
+                } else {
+                    switch (e->button.id) {
+                        case NI_MASCHINE_MIKRO_MK3_BTN_GROUP:
+                            mm->group_pressed = e->button.pressed;
+                            break;
+                        case NI_MASCHINE_MIKRO_MK3_BTN_SHIFT:
+                            mm->shift_pressed = e->button.pressed;
+                            break;
+                        default:
+                            msg[0] = 0xb0;
+                            msg[1] = 60 + e->button.id;
+                            msg[2] = e->button.pressed ? MIDI_MAX_VELOCITY : 0;
+                            ret = ctlra_midi_output_write(midi, 3, msg);
+                            break;
+                    }
                 }
 
             case CTLRA_EVENT_ENCODER:
@@ -152,10 +171,12 @@ void demo_event_func(struct ctlra_dev_t* dev,
                     msg[0] = (e->grid.pressed ? 0x90 : 0x80) + mm->midi_channel;
                     int pos = e->grid.pos;
                     daemon->grid[pos] = e->grid.pressed;
-//                msg[1] = pos + 36; /* GM kick drum note */
                     msg[1] = MIDI_STARTING_NOTE + mm->group_id * daemon->pads_count + pos;
-                    msg[2] = e->grid.pressed ?
-                             e->grid.pressure * 127 : 0;
+                    if(e->grid.pressed) {
+                        msg[2] = mm->fixed_velocity ? MIDI_MAX_VELOCITY : e->grid.pressure * MIDI_MAX_VELOCITY;
+                    } else {
+                        msg[2] = 0;
+                    }
                     ret = ctlra_midi_output_write(midi, 3, msg);
                 }
                 break;
@@ -212,8 +233,6 @@ int accept_dev_func(struct ctlra_t *ctlra,
 
         daemon->mm = calloc(1, sizeof(struct mm_t));
         daemon->mm->max_groups = (MIDI_MAX_NOTE - MIDI_STARTING_NOTE) / daemon->pads_count;
-        daemon->mm->group_id = 0;
-        daemon->mm->midi_channel = 0;
 
         /* easter egg: set env var to change colour of pads */
         char *col = getenv("CTLRA_COLOUR");
