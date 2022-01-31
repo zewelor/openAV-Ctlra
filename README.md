@@ -56,7 +56,7 @@ And connect your controller. You should see midi ports, for example in jack patc
 This library currently supports the following devices:
 
 - 3DConnexion SpaceMouse Pro (Wireless)
-- Native Instruments Maschine Mikro (Mk2 only)
+- Native Instruments Maschine Mikro (Mk2 and MK3 only)
 - Native Instruments Traktor D2
 - Native Instruments Traktor F1
 - Native Instruments Traktor S2 (Mk2 only)
@@ -71,6 +71,8 @@ These devices include:
 - Generic MIDI
 - Generic OSC
 - Arduino Serial
+
+For more info check [Devices page](ctlra/devices/README.md)
 
 ## Device Manufacturers
 
