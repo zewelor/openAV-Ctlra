@@ -48,7 +48,7 @@ struct daemon_t {
     uint8_t grid[GRID_SIZE];
 
     struct ctlra_dev_info_t info;
-    struct mm_t* mm;
+    struct mm_t mm;
 };
 
 void demo_feedback_func(struct ctlra_dev_t *dev, void *d)
@@ -56,7 +56,7 @@ void demo_feedback_func(struct ctlra_dev_t *dev, void *d)
     struct daemon_t *daemon = d;
 
     if(daemon->has_grid) {
-        struct mm_t *mm = daemon->mm;
+        struct mm_t *mm = &daemon->mm;
 
         uint32_t col;
 
@@ -248,8 +248,7 @@ int accept_dev_func(struct ctlra_t *ctlra,
         daemon->pads_count = daemon->info.grid_info[0].info.params[1] - daemon->info.grid_info[0].info.params[0];
         daemon->grid_col = 0xff0040ff;
 
-        daemon->mm = calloc(1, sizeof(struct mm_t));
-        daemon->mm->max_groups = (MIDI_MAX_NOTE - MIDI_STARTING_NOTE) / daemon->pads_count;
+        daemon->mm.max_groups = (MIDI_MAX_NOTE - MIDI_STARTING_NOTE) / daemon->pads_count;
 
         /* easter egg: set env var to change colour of pads */
         char *col = getenv("CTLRA_COLOUR");
