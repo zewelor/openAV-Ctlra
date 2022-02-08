@@ -107,7 +107,7 @@ void demo_event_func(struct ctlra_dev_t* dev,
                      void *userdata)
 {
     struct daemon_t *daemon = userdata;
-    struct mm_t *mm = daemon->mm;
+    struct mm_t *mm = &daemon->mm;
     struct ctlra_midi_t *midi = daemon->midi;
     uint8_t msg[3] = {0};
 
