@@ -36,6 +36,8 @@ struct mm_t
     uint8_t midi_channel;
     uint8_t fixed_velocity;
     uint8_t encoder_value[MIDI_CHANNEL_MAX];
+
+    uint8_t lights_force_redraw;
 };
 
 /* a struct to pass around as userdata to callbacks */
@@ -84,11 +86,9 @@ void demo_feedback_func(struct ctlra_dev_t *dev, void *d)
                 }
                 ctlra_dev_light_set(dev, id, col);
             }
-        } else {
+        } else if(mm->lights_force_redraw) {
             for(int i = 0; i < daemon->pads_count; i++) {
-                int id = daemon->info.grid_info[0].info.params[0] + i;
-                col = daemon->grid_col * (daemon->grid[i] > 0);
-                ctlra_dev_light_set(dev, id, col);
+                ctlra_dev_light_set(dev, daemon->info.grid_info[0].info.params[0] + i, 0x00000000);
             }
         }
     }
@@ -121,19 +121,23 @@ void demo_event_func(struct ctlra_dev_t* dev,
                         case NI_MASCHINE_MIKRO_MK3_BTN_FIXED_VEL:
                             if(e->button.pressed) {
                                 mm->fixed_velocity = !mm->fixed_velocity;
+                                mm->lights_force_redraw = 1;
                             }
                             break;
                         case NI_MASCHINE_MIKRO_MK3_BTN_SHIFT:
                             mm->shift_pressed = e->button.pressed;
+                            mm->lights_force_redraw = 1;
                             break;
                     }
                 } else {
                     switch (e->button.id) {
                         case NI_MASCHINE_MIKRO_MK3_BTN_GROUP:
                             mm->group_pressed = e->button.pressed;
+                            mm->lights_force_redraw = 1;
                             break;
                         case NI_MASCHINE_MIKRO_MK3_BTN_SHIFT:
                             mm->shift_pressed = e->button.pressed;
+                            mm->lights_force_redraw = 1;
                             break;
                         default:
                             msg[0] = 0xb0 + mm->midi_channel;
